@@ -14,12 +14,13 @@ def subsequent_mask(size):
     return subsequent_mask == 0
 
 
+"""query, key, value are of shape (batch_size, num_heads, seq_len, d_model)"""
 def attention(query, key, value, mask=None, dropout=None):
     d_k = query.size(-1)
-    scores = torch.matmul(query, key.transpose(-2, -1)) / (d_k ** 0.5)
+    scores = torch.matmul(query, key.transpose(-2, -1)) / (d_k ** 0.5) # (batch_size, num_heads, seq_len, seq_len)
     if mask is not None:
         scores = scores.masked_fill(mask == 0, -1e9)
-    p_attn = torch.nn.functional.softmax(scores, dim = -1)
+    p_attn = torch.nn.functional.softmax(scores, dim = -1) # (batch_size, num_heads, seq_len, seq_len)
     if dropout is not None:
         p_attn = dropout(p_attn)
     return torch.matmul(p_attn, value), p_attn
@@ -49,8 +50,6 @@ class MultiHeadedAttention(torch.nn.Module):
         self.dropout = torch.nn.Dropout(p=dropout)
 
     def forward(self, query, key, value, mask=None):
-        if mask is not None:
-            mask = mask.unsqueeze(1)
         num_batches = query.size(0)
 
         query, key, value = [
@@ -80,19 +79,36 @@ class FeedForward(torch.nn.Module):
         return self.linear2(self.dropout(F.relu(self.linear1(x))))
 
 
-class Embeddings(torch.nn.Module):
-    def __init__(self, d_model, entry):
-        super(Embeddings, self).__init__()
-        self.lut = torch.nn.Embedding(entry, d_model)
-        self.d_model = d_model
+# class Embeddings(torch.nn.Module):
+#     def __init__(self, d_model, entry):
+#         super(Embeddings, self).__init__()
+#         self.lut = torch.nn.Embedding(entry, d_model)
+#         self.d_model = d_model
 
-    def forward(self, x):
-        return self.lut(x) * math.sqrt(self.d_model)
+#     def forward(self, x):
+#         return self.lut(x) * math.sqrt(self.d_model)
     
 
-class Generator(torch.nn.Module):
+class ANN(torch.nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(ANN, self).__init__()
+        layer_dim = [input_dim,] + hidden_dim + [output_dim,]
+        self.fc = torch.nn.ParameterList(
+            [torch.nn.Linear(layer_dim[i], layer_dim[i+1]) for i in range(len(layer_dim) - 1)]
+        )
+        for layer in self.fc:
+            torch.nn.init.xavier_uniform_(layer.weight)
+            layer.bias.data.fill_(0)
+
+    def forward(self, x):
+        for layer in self.fc:
+            x = F.relu(layer(x))
+        return x
+    
+
+class Predictor(torch.nn.Module):
     def __init__(self, d_model, entry, softmax = False):
-        super(Generator, self).__init__()
+        super(Predictor, self).__init__()
         self.proj = torch.nn.Linear(d_model, entry)
         self.softmax = softmax
 
@@ -102,7 +118,7 @@ class Generator(torch.nn.Module):
     
 
 class PositionalEncoding(torch.nn.Module):
-    def __init__(self, d_model, dropout, max_len=5000):
+    def __init__(self, d_model, dropout, max_len=1000):
         super(PositionalEncoding, self).__init__()
         self.dropout = torch.nn.Dropout(p=dropout)
 
