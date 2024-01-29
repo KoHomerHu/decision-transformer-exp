@@ -9,9 +9,9 @@ The Transformer class in ```decision_transformer.py``` was originally adapted fr
 
 Modifications: 
 
-    - Decision transformer requires a decoder-only (i.e. causal) transformer variant same with that of the [GPT](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) since we only need to predict the next action. 
-    
-    - I have replaced the part that embeds tokens with an ANN, since we are not dealing with words.
+    -[x] Decision transformer requires a decoder-only (i.e. causal) transformer variant same with that of the [GPT](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) since we only need to predict the next action. 
+
+    -[x] I have replaced the part that embeds tokens with an ANN, since we are not dealing with words.
 
 [Why next-token prediction is enough for AGI - Ilya Sutskever](https://www.youtube.com/watch?v=YEUclZdj_Sc): 
 
