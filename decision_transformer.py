@@ -91,26 +91,21 @@ from utils import *
 
 """Modified implementation of decoder that does not rely on outputs from the encoder."""
 class DecoderLayer(torch.nn.Module):
-    def __init__(self, size, self_attn, src_attn, feed_forward, dropout):
+    def __init__(self, size, self_attn, feed_forward, dropout):
         super(DecoderLayer, self).__init__()
         self.self_attn = self_attn
         self.dropout1 = torch.nn.Dropout(dropout)
         self.norm1 = LayerNorm(size)
 
-        self.src_attn = src_attn
+        self.feed_forward = feed_forward
         self.dropout2 = torch.nn.Dropout(dropout)
         self.norm2 = LayerNorm(size)
 
-        self.feed_forward = feed_forward
-        self.dropout3 = torch.nn.Dropout(dropout)
-        self.norm3 = LayerNorm(size)
-
         self.size = size
         
-    def forward(self, x, memory, src_mask, tgt_mask):
+    def forward(self, x, tgt_mask):
         x = self.norm1(x + self.dropout1(self.self_attn(x, x, x, tgt_mask)))
-        x = self.norm2(x + self.dropout2(self.src_attn(x, memory, memory, src_mask)))
-        x = self.norm3(x + self.dropout3(self.feed_forward(x)))
+        x = self.norm2(x + self.dropout2(self.feed_forward(x)))
         return x
     
 
@@ -120,9 +115,9 @@ class Decoder(torch.nn.Module):
         self.layers = stack_modules(layer, N)
         self.norm = LayerNorm(layer.size)
         
-    def forward(self, x, memory, src_mask, tgt_mask):
+    def forward(self, x, tgt_mask):
         for layer in self.layers:
-            x = layer(x, memory, src_mask, tgt_mask)
+            x = layer(x, tgt_mask)
         return self.norm(x)
 
 
@@ -134,21 +129,23 @@ the prediction of the next state only.
 class Transformer(torch.nn.Module):
     def __init__(self, feature_dim, N=3, d_model=128, d_ff=256, num_heads=8, dropout=0.1):
         super(Transformer, self).__init__()
+
         self.decoder=  Decoder(
             DecoderLayer(
                 d_model, 
-                MultiHeadedAttention(num_heads, d_model), 
-                MultiHeadedAttention(num_heads, d_model), 
+                MultiHeadedAttention(num_heads, d_model),
                 FeedForward(d_model, d_ff), 
                 dropout
             ), 
             N
         )
+
         self.embed = torch.nn.Sequential(
             ANN(feature_dim, [d_model * 2, d_model * 2], d_model), 
             PositionalEncoding(d_model, dropout)
         )
-        self.predictor = Predictor(d_model, feature_dim, softmax=False)
+        
+        self.predictor = ANN(d_model, [d_model * 2, d_model * 2], feature_dim, softmax=False)
 
         for p in self.parameters():
             if p.dim() > 1:

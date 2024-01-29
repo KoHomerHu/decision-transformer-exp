@@ -96,9 +96,9 @@ class ANN(torch.nn.Module):
         self.fc = torch.nn.ParameterList(
             [torch.nn.Linear(layer_dim[i], layer_dim[i+1]) for i in range(len(layer_dim) - 1)]
         )
-        for layer in self.fc:
-            torch.nn.init.xavier_uniform_(layer.weight)
-            layer.bias.data.fill_(0)
+        # for layer in self.fc:
+        #     torch.nn.init.xavier_uniform_(layer.weight)
+        #     layer.bias.data.fill_(0)
 
     def forward(self, x):
         for layer in self.fc:
@@ -106,15 +106,15 @@ class ANN(torch.nn.Module):
         return x
     
 
-class Predictor(torch.nn.Module):
-    def __init__(self, d_model, entry, softmax = False):
-        super(Predictor, self).__init__()
-        self.proj = torch.nn.Linear(d_model, entry)
-        self.softmax = softmax
+# class Predictor(torch.nn.Module):
+#     def __init__(self, d_model, entry, softmax = False):
+#         super(Predictor, self).__init__()
+#         self.proj = torch.nn.Linear(d_model, entry)
+#         self.softmax = softmax
 
-    def forward(self, x):
-        x = self.proj(x)
-        return F.softmax(x, dim=-1) if self.softmax else x
+#     def forward(self, x):
+#         x = self.proj(x)
+#         return F.softmax(x, dim=-1) if self.softmax else x
     
 
 class PositionalEncoding(torch.nn.Module):
