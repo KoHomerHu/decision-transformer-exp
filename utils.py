@@ -71,16 +71,6 @@ class FeedForward(torch.nn.Module):
 
     def forward(self, x):
         return self.linear2(self.dropout(F.relu(self.linear1(x))))
-
-
-# class Embeddings(torch.nn.Module):
-#     def __init__(self, d_model, entry):
-#         super(Embeddings, self).__init__()
-#         self.lut = torch.nn.Embedding(entry, d_model)
-#         self.d_model = d_model
-
-#     def forward(self, x):
-#         return self.lut(x) * math.sqrt(self.d_model)
     
 
 class ANN(torch.nn.Module):
@@ -90,25 +80,11 @@ class ANN(torch.nn.Module):
         self.fc = torch.nn.ParameterList(
             [torch.nn.Linear(layer_dim[i], layer_dim[i+1]) for i in range(len(layer_dim) - 1)]
         )
-        # for layer in self.fc:
-        #     torch.nn.init.xavier_uniform_(layer.weight)
-        #     layer.bias.data.fill_(0)
 
     def forward(self, x):
         for layer in self.fc:
             x = F.relu(layer(x))
         return x
-    
-
-# class Predictor(torch.nn.Module):
-#     def __init__(self, d_model, entry, softmax = False):
-#         super(Predictor, self).__init__()
-#         self.proj = torch.nn.Linear(d_model, entry)
-#         self.softmax = softmax
-
-#     def forward(self, x):
-#         x = self.proj(x)
-#         return F.softmax(x, dim=-1) if self.softmax else x
     
 
 class PositionalEncoding(torch.nn.Module):

@@ -14,4 +14,6 @@ Since we only need the transformer to predict one step ahead, I learned that it 
 
 ## DecisionTransformer Class
 
-To be implemented.
+The decision transformer is implemented for discrete actions and without considering the timestep.
+
+Label-smoothing and other techniques may also be considered.
