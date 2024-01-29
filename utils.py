@@ -8,19 +8,13 @@ def stack_modules(module, N):
     return torch.nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
-def subsequent_mask(size):
-    attn_shape = (1, size, size)
-    subsequent_mask = torch.triu(torch.ones(attn_shape), diagonal=1).type(torch.uint8)
-    return subsequent_mask == 0
-
-
 """query, key, value are of shape (batch_size, num_heads, seq_len, d_model)"""
 def attention(query, key, value, mask=None, dropout=None):
     d_k = query.size(-1)
     scores = torch.matmul(query, key.transpose(-2, -1)) / (d_k ** 0.5) # (batch_size, num_heads, seq_len, seq_len)
     if mask is not None:
         scores = scores.masked_fill(mask == 0, -1e9)
-    p_attn = torch.nn.functional.softmax(scores, dim = -1) # (batch_size, num_heads, seq_len, seq_len)
+    p_attn = torch.nn.functional.softmax(scores, dim=-1) # (batch_size, num_heads, seq_len, seq_len)
     if dropout is not None:
         p_attn = dropout(p_attn)
     return torch.matmul(p_attn, value), p_attn

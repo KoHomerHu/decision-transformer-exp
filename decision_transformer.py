@@ -103,8 +103,8 @@ class DecoderLayer(torch.nn.Module):
 
         self.size = size
         
-    def forward(self, x, tgt_mask):
-        x = self.norm1(x + self.dropout1(self.self_attn(x, x, x, tgt_mask)))
+    def forward(self, x, mask):
+        x = self.norm1(x + self.dropout1(self.self_attn(x, x, x, mask)))
         x = self.norm2(x + self.dropout2(self.feed_forward(x)))
         return x
     
@@ -115,19 +115,19 @@ class Decoder(torch.nn.Module):
         self.layers = stack_modules(layer, N)
         self.norm = LayerNorm(layer.size)
         
-    def forward(self, x, tgt_mask):
+    def forward(self, x, mask):
         for layer in self.layers:
-            x = layer(x, tgt_mask)
+            x = layer(x, mask)
         return self.norm(x)
 
 
 """
 A decoder-only transformer model that has been modified to accept input as a sequence or a batch of 
 sequences of 1D tensors (i.e. (batch_size, seq_len, state_dim) or (seq_len, state_dim)), and output 
-the prediction of the next state only.
+the prediction of the next state only. Assume that the input is not all negative.
 """
 class Transformer(torch.nn.Module):
-    def __init__(self, feature_dim, N=3, d_model=128, d_ff=256, num_heads=8, dropout=0.1):
+    def __init__(self, feature_dim, N=4, d_model=256, d_ff=512, num_heads=8, dropout=0.1):
         super(Transformer, self).__init__()
 
         self.decoder=  Decoder(
@@ -144,17 +144,32 @@ class Transformer(torch.nn.Module):
             ANN(feature_dim, [d_model * 2, d_model * 2], d_model), 
             PositionalEncoding(d_model, dropout)
         )
-        
-        self.predictor = ANN(d_model, [d_model * 2, d_model * 2], feature_dim, softmax=False)
+
+        self.predictor = ANN(d_model, [d_model * 2, d_model * 2], feature_dim)
 
         for p in self.parameters():
             if p.dim() > 1:
                 torch.nn.init.xavier_uniform_(p)
 
+    def causal_mask(self, seq_len):
+        attn_shape = (1, 1, seq_len, seq_len)
+        causal_mask = torch.triu(torch.ones(attn_shape), diagonal=1).type(torch.uint8)
+        return causal_mask == 0
+
     def forward(self, x):
         if x.dim() == 2:
             x = x.unsqueeze(0) # add batch dimension if there is none
+
+        batch_size, seq_len, feature_dim = x.size()
+        blank = -torch.ones(batch_size, 1, feature_dim).to(x.device)
+        x = torch.cat((x, blank), dim=1) # padding at the end of each trajectory
+        seq_len += 1
         
+        mask = self.causal_mask(seq_len).to(x.device)
+        output = self.decoder(self.embed(x), mask)[:,-1,:]
+        prediction = self.predictor(output)
+
+        return prediction
 
         
 """The original transformer architecture that was not yet finished."""
@@ -196,18 +211,6 @@ class Transformer(torch.nn.Module):
 #         memory = self.get_memory(src, src_mask) # encode source
 
 
-if __name__ == '__main__':
-    def inference_test():
-        test_model = Transformer(2)
-        test_model.eval()
-        src = torch.tensor([
-            [[1,1], [2,1], [3,1], [4,1], [5,1], [6,1], [7,1], [8,1], [9,1], [10,1]],
-            [[1,2], [2,2], [3,2], [4,2], [5,2], [6,2], [7,2], [8,2], [9,2], [10,2]],
-            [[1,3], [2,3], [3,3], [4,3], [5,3], [6,3], [7,3], [8,3], [9,3], [10,3]]
-        ], dtype=torch.float) # a batch of trajectories of 2 dimensional points
-
-        print(test_model(src))
-
-    for _ in range(5):
-        inference_test()
+class DecisionTransformer(torch.nn.Module):
+    pass
 
