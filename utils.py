@@ -91,12 +91,14 @@ class Embeddings(torch.nn.Module):
     
 
 class Generator(torch.nn.Module):
-    def __init__(self, d_model, entry):
+    def __init__(self, d_model, entry, softmax = False):
         super(Generator, self).__init__()
         self.proj = torch.nn.Linear(d_model, entry)
+        self.softmax = softmax
 
     def forward(self, x):
-        return F.log_softmax(self.proj(x), dim=-1)
+        x = self.proj(x)
+        return F.softmax(x, dim=-1) if self.softmax else x
     
 
 class PositionalEncoding(torch.nn.Module):
