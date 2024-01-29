@@ -114,3 +114,4 @@ class DecisionTransformer(torch.nn.Module):
         _, action, _ = torch.split(output, [self.state_dim, self.action_dim, 1], dim=1) 
 
         return F.softmax(action, dim=1)
+    

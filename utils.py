@@ -1,7 +1,10 @@
 import torch
 import torch.nn.functional as F
+from torch.utils.data import Dataset
 import copy
 import math
+import pickle
+import numpy as np
 
 
 def stack_modules(module, N):
@@ -105,3 +108,12 @@ class PositionalEncoding(torch.nn.Module):
     def forward(self, x):
         x = x + self.pe[:, : x.size(1)].requires_grad_(False)
         return self.dropout(x)
+    
+
+"""Function to compute the reward-to-go"""
+def reward_to_go(rewards):
+    n = len(rewards)
+    rtgs = np.zeros_like(rewards)
+    for i in reversed(range(n)):
+        rtgs[i] = rewards[i] + (rtgs[i+1] if i+1 < n else 0)
+    return rtgs

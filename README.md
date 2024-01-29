@@ -6,7 +6,10 @@ Implementation of [decision transformer](https://arxiv.org/abs/2106.01345) in Py
 
 The Transformer class in ```decision_transformer.py``` was originally adapted from [this tutorial](https://nlp.seas.harvard.edu/annotated-transformer/) and [this repo](https://github.com/hyunwoongko/transformer/tree/master). 
 
-Since we only need the transformer to predict one step ahead, I learned that it would be better to use a decoder-only (i.e. causal) transformer variant same with that of the [GPT](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf). Meantime, I have replaced the part that embeds tokens with an ANN, since we are not dealing with words.
+
+Modifications: 
+    - Decision transformer requires a decoder-only (i.e. causal) transformer variant same with that of the [GPT](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf) since we only need to predict the next action. 
+    - I have replaced the part that embeds tokens with an ANN, since we are not dealing with words.
 
 [Why next-token prediction is enough for AGI - Ilya Sutskever](https://www.youtube.com/watch?v=YEUclZdj_Sc): 
 
