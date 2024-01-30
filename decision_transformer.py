@@ -70,20 +70,20 @@ class Transformer(torch.nn.Module):
         causal_mask = torch.triu(torch.ones(attn_shape), diagonal=1).type(torch.uint8)
         return causal_mask == 0
 
-    def forward(self, x):
+    def forward(self, x, pred_len = 1):
         if x.dim() == 2:
             x = x.unsqueeze(0) # add batch dimension if there is none
 
         batch_size, seq_len, feature_dim = x.size()
-        blank = -torch.ones(batch_size, 1, feature_dim).to(x.device)
+        blank = -torch.ones(batch_size, pred_len, feature_dim).to(x.device)
         x = torch.cat((x, blank), dim=1) # padding at the end of each trajectory
-        seq_len += 1
+        seq_len += pred_len
         
         mask = self.causal_mask(seq_len).to(x.device)
-        output = self.decoder(self.embed(x), mask)[:,-1,:]
+        output = self.decoder(self.embed(x), mask)[:,-pred_len:,:]
         prediction = self.predictor(output)
 
-        return prediction
+        return prediction # (batch_size, pred_len, feature_dim)
 
 
 class DecisionTransformer(torch.nn.Module):
