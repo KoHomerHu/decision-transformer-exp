@@ -75,7 +75,7 @@ class Transformer(torch.nn.Module):
             x = x.unsqueeze(0) # add batch dimension if there is none
 
         batch_size, seq_len, feature_dim = x.size()
-        blank = -2 * torch.ones(batch_size, pred_len, feature_dim).to(x.device)
+        blank = -2 * torch.ones(batch_size, pred_len, feature_dim).to(x.device) # the non blank elements are all between -1 and 1, hence can use -2 to represent blank
         x = torch.cat((x, blank), dim=1) # padding at the end of each trajectory
         seq_len += pred_len
         
@@ -113,8 +113,8 @@ class DecisionTransformer(torch.nn.Module):
             rtg = rtg.unsqueeze(0)
             state = state.unsqueeze(0)
             squeeze = True
-        rtg_encoding = self.rtg_embed(rtg).unsqueeze(-2) # (batch_size, 1, feature_dim)
-        obs_encoding = self.obs_embed(state).unsqueeze(-2) # (batch_size, 1, feature_dim)
+        rtg_encoding = F.tanh(self.rtg_embed(rtg)).unsqueeze(-2) # (batch_size, 1, feature_dim)
+        obs_encoding = F.tanh(self.obs_embed(state)).unsqueeze(-2) # (batch_size, 1, feature_dim)
         x = torch.cat((memory, rtg_encoding, obs_encoding), dim=-2) # (batch_size, max_traj_len + 2, feature_dim)
         x = x[:, -self.max_traj_len:, :] # only use the last max_traj_len elements of the memory
 
