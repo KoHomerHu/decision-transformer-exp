@@ -31,8 +31,8 @@ if __name__ == '__main__':
     except:
         pass
 
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-    optimizer = torch.optim.Adam(model.parameters(), lr=6e-4)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=8)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     criterion = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
 
     num_epochs = 1000
@@ -44,7 +44,8 @@ if __name__ == '__main__':
             batch = next(iterator)
             rtg, obs, act = batch['rtg'].float().to(device), batch['state'].float().to(device), batch['action'].float().to(device)
             if act.shape[0] != batch_size:
-                continue
+                pbar.update(1)
+                pbar.set_description("Epoch {} Skipped")
 
             pred_act = torch.zeros_like(act).to(device)
             memory = None
