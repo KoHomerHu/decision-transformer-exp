@@ -117,3 +117,35 @@ def reward_to_go(rewards):
     for i in reversed(range(n)):
         rtgs[i] = rewards[i] + (rtgs[i+1] if i+1 < n else 0)
     return rtgs
+
+
+class TrajectoryDataset(Dataset):
+    def __init__(self, action_dim, pkl_file, root_dir = "./data/", max_traj_len = 100):
+        self.action_dim = action_dim
+        self.data = pickle.load(open(root_dir + pkl_file, 'rb'))
+        self.data = list(filter(lambda x : len(x['state']) >= max_traj_len, self.data))
+        self.max_traj_len = 100
+
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        trajectory = self.data[idx]
+        N = len(trajectory['state'])
+        start_idx = torch.randint(0, N - self.max_traj_len, (1,)).item()
+        end_idx = start_idx + self.max_traj_len
+        state = trajectory['state'][start_idx:end_idx]
+        rtg = trajectory['reward-to-go'][start_idx:end_idx]
+        action = trajectory['action'][start_idx:end_idx]
+        return {
+            'state' : torch.tensor(state),
+            'rtg' : torch.tensor(rtg).unsqueeze(-1),
+            'action' : F.one_hot(torch.tensor(action), self.action_dim)
+        }
+    
+
+"""Helps to sample from the trajectory dataset multiple times"""
+def cycle(iterable):
+    while True:
+        for x in iterable:
+            yield x

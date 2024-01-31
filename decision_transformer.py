@@ -87,17 +87,16 @@ class Transformer(torch.nn.Module):
     
 
 class DecisionTransformer(torch.nn.Module):
-    def __init__(self, state_dim, action_dim, feature_dim=64, max_traj_len=50, num_decoder_layer=4, d_model=256, d_ff=512, num_heads=8, dropout=0.1):
+    def __init__(self, state_dim, action_dim, feature_dim=64, max_traj_len=500, num_decoder_layer=4, d_model=256, d_ff=512, num_heads=8, dropout=0.1):
         super(DecisionTransformer, self).__init__()
 
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.feature_dim = feature_dim
-        self.max_traj_len = max_traj_len # maximum length of the input trajectory
+        self.max_traj_len = max_traj_len # maximum length of the input trajectory, multiplied by 2 when using
 
-        self.obs_embed = torch.nn.Linear(state_dim, feature_dim)
+        self.input_embed = torch.nn.Linear(state_dim + 1, feature_dim)
         self.act_embed = torch.nn.Linear(action_dim, feature_dim)
-        self.rtg_embed = torch.nn.Linear(1, feature_dim)
 
         self.act_predict = torch.nn.Linear(feature_dim, action_dim)
 
@@ -105,23 +104,28 @@ class DecisionTransformer(torch.nn.Module):
             feature_dim, num_decoder_layer, d_model, d_ff, num_heads, dropout
         )
 
-    def forward(self, rtg, state, memory):
+    def forward(self, rtg, obs, memory = None):
         squeeze = False
-        if x.dim() == 2:
+        if obs.dim() == 1:
             # add batch dimension if there is none
-            x = x.unsqueeze(0) 
             rtg = rtg.unsqueeze(0)
-            state = state.unsqueeze(0)
+            obs = obs.unsqueeze(0)
+            if memory is not None:
+                memory = memory.unsqueeze(0) 
             squeeze = True
-        rtg_encoding = F.tanh(self.rtg_embed(rtg)).unsqueeze(-2) # (batch_size, 1, feature_dim)
-        obs_encoding = F.tanh(self.obs_embed(state)).unsqueeze(-2) # (batch_size, 1, feature_dim)
-        x = torch.cat((memory, rtg_encoding, obs_encoding), dim=-2) # (batch_size, max_traj_len + 2, feature_dim)
-        x = x[:, -self.max_traj_len:, :] # only use the last max_traj_len elements of the memory
+        input = torch.cat((rtg, obs), dim=-1)
+        input_encoding = F.tanh(self.input_embed(input)).unsqueeze(1) # (batch_size, 1, feature_dim)
+        if memory is not None:
+            x = torch.cat((memory, input_encoding), dim=-2) # (batch_size, max_traj_len + 1, feature_dim)
+        else:
+            x = input_encoding
+        x = x[:, -self.max_traj_len * 2:, :] # only use the last max_traj_len elements of the memory
 
         output = self.transformer(x, pred_len = 1) 
         action = self.act_predict(output) # predict the action, (batch_size, 1, action_dim)
-        new_memory = torch.cat((x, output), dim=-2) # append the action encoding to the memory, (batch_size, max_traj_len, feature_dim)
-        new_memory = new_memory[:, -self.max_traj_len:, :] # only use the last max_traj_len elements of the memory
+        act_encoding = F.tanh(self.act_embed(action))
+        new_memory = torch.cat((x, act_encoding), dim=-2) # append the action encoding to the memory, (batch_size, max_traj_len, feature_dim)
+        new_memory = new_memory[:, -self.max_traj_len * 2:, :] # only use the last max_traj_len elements of the memory
         if squeeze:
             action = action.squeeze(0)
             new_memory = new_memory.squeeze(0)

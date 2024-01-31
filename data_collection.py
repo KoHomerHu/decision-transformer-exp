@@ -4,6 +4,7 @@ from env.rmul_env import Env
 from utils import *
 import keyboard
 import cv2
+from time import time
 
 arena_file = "./env/arena.json"
 total_robot_num = 1 # first try with only ego robot
@@ -13,7 +14,7 @@ robot_configuration = {
     'arrow_length' : 500
 }
 
-env = Env(arena_file, total_robot_num, robot_configuration, 1.0, rendering=True, truncate_size=100000)
+env = Env(arena_file, total_robot_num, robot_configuration, 1.0, rendering=True, truncate_size=1000, real_show = False)
 
 filename = "./data/behavioural_trajectory_data.pkl"
 data = []
@@ -25,7 +26,9 @@ else:
 print("{} trajectories already collected.".format(len(data)))
 input("Press Enter to start data collection of 10 trajectories.")
 
-for i in range(1):
+max_traj_len = 100
+
+for i in range(10):
     state = env.reset()
     done = truncated = False
     trajectory = {
@@ -34,6 +37,7 @@ for i in range(1):
         'reward-to-go' : []
     }
     rewards = []
+    start_time = time()
     while not (done or truncated):
         action = 0
         if keyboard.is_pressed('o'):
@@ -53,8 +57,12 @@ for i in range(1):
         rewards.append(reward)
         trajectory['action'].append(action)
         state = next_state
+    if len(trajectory['state']) < max_traj_len:
+        continue
     trajectory['reward-to-go'] = reward_to_go(rewards)
     data.append(trajectory)
+    end_time = time()
+    print("FPS = ", len(trajectory['state']) / (end_time - start_time))
 
 print("{} data tuples collected.".format(len(data)))
 
