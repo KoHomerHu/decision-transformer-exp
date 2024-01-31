@@ -10,42 +10,55 @@ if __name__ == '__main__':
     state_dim = 5
     action_dim = 7
     max_traj_len = 50
+    batch_size = 64
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = DecisionTransformer(
         state_dim, 
         action_dim, 
         max_traj_len=max_traj_len
-    )
+    ).to(device)
 
     dataset = TrajectoryDataset(
         action_dim, 
         "behavioural_trajectory_data.pkl", 
         max_traj_len=max_traj_len
     )
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=4)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+    try:
+        model.load_state_dict(torch.load("./models/SentryGPT-beta.pt"))
+    except:
+        pass
+
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=6e-4)
     criterion = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
 
-    num_epochs = 100
+    num_epochs = 1000
     iterator = iter(cycle(dataloader))
+
     with tqdm(total=num_epochs) as pbar:
         for epoch in range(num_epochs):
-            for _ in range(10):
-                batch = next(iterator)
-                rtg, obs, act = batch['rtg'].float(), batch['state'].float(), batch['action'].float()
 
-                pred_act = torch.zeros_like(act)
-                memory = None
+            batch = next(iterator)
+            rtg, obs, act = batch['rtg'].float().to(device), batch['state'].float().to(device), batch['action'].float().to(device)
+            if act.shape[0] != batch_size:
+                continue
 
-                for i in range(0, max_traj_len):
-                    pred_action, memory = model(rtg[:,i,:], obs[:,i,:], memory)
-                    pred_act[:, i, :] += pred_action.squeeze(1)
+            pred_act = torch.zeros_like(act).to(device)
+            memory = None
 
-                loss = criterion(pred_act, act)
+            for i in range(0, max_traj_len):
+                pred_action, memory = model(rtg[:,i,:], obs[:,i,:], memory)
+                pred_act[:, i, :] += pred_action.squeeze(1)
 
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+            loss = criterion(pred_act.reshape((max_traj_len * batch_size, action_dim)), 
+                             act.reshape((max_traj_len * batch_size, action_dim)))
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
             pbar.update(1)
             pbar.set_description("Epoch {} Loss: {:.4f}".format(epoch, loss.item()))

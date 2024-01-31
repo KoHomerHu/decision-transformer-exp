@@ -124,7 +124,7 @@ class TrajectoryDataset(Dataset):
         self.action_dim = action_dim
         self.data = pickle.load(open(root_dir + pkl_file, 'rb'))
         self.data = list(filter(lambda x : len(x['state']) >= max_traj_len, self.data))
-        self.max_traj_len = 100
+        self.max_traj_len = max_traj_len
 
     def __len__(self):
         return len(self.data)
