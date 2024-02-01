@@ -26,26 +26,27 @@ if __name__ == '__main__':
         max_traj_len=max_traj_len
     )
 
-    try:
-        model.load_state_dict(torch.load("./models/SentryGPT-beta.pt"))
-    except:
-        pass
+    # try:
+    #     model.load_state_dict(torch.load("./models/SentryGPT-beta.pt"))
+    # except:
+    #     pass
 
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=8)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    criterion = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
+    # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=8)
+    dataloader = InfiniteSampler(state_dim, action_dim, dataset, batch_size=batch_size, shuffle=True)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+    criterion = torch.nn.CrossEntropyLoss(label_smoothing=0.05)
 
-    num_epochs = 1000
+    num_epochs = 100
     iterator = iter(cycle(dataloader))
 
     with tqdm(total=num_epochs) as pbar:
-        for epoch in range(num_epochs):
+        epoch = 0
+        while epoch < num_epochs:
 
             batch = next(iterator)
             rtg, obs, act = batch['rtg'].float().to(device), batch['state'].float().to(device), batch['action'].float().to(device)
             if act.shape[0] != batch_size:
-                pbar.update(1)
-                pbar.set_description("Epoch {} Skipped")
+                continue
 
             pred_act = torch.zeros_like(act).to(device)
             memory = None
@@ -61,6 +62,7 @@ if __name__ == '__main__':
             loss.backward()
             optimizer.step()
 
+            epoch += 1
             pbar.update(1)
             pbar.set_description("Epoch {} Loss: {:.4f}".format(epoch, loss.item()))
 

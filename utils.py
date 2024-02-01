@@ -1,10 +1,11 @@
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Sampler
 import copy
 import math
 import pickle
 import numpy as np
+import random
 
 
 def stack_modules(module, N):
@@ -132,7 +133,7 @@ class TrajectoryDataset(Dataset):
     def __getitem__(self, idx):
         trajectory = self.data[idx]
         N = len(trajectory['state'])
-        start_idx = torch.randint(0, N - self.max_traj_len, (1,)).item()
+        start_idx = random.randint(0, N - self.max_traj_len)
         end_idx = start_idx + self.max_traj_len
         state = trajectory['state'][start_idx:end_idx]
         rtg = trajectory['reward-to-go'][start_idx:end_idx]
@@ -142,6 +143,36 @@ class TrajectoryDataset(Dataset):
             'rtg' : torch.tensor(rtg).unsqueeze(-1),
             'action' : F.one_hot(torch.tensor(action), self.action_dim)
         }
+
+
+"""More efficient trajectory sampler compared with the ordinary DataLoader"""
+class InfiniteSampler(Sampler):
+    def __init__(self, state_dim, action_dim, dataset, batch_size, shuffle=True):
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        self.dataset = dataset
+        self.length = len(dataset)
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.idx = 0 if not self.shuffle else random.randint(0, self.length - 1)
+    
+    def __iter__(self):
+        ret_state = torch.empty((self.batch_size, self.dataset.max_traj_len, self.state_dim))
+        ret_rtg = torch.empty((self.batch_size, self.dataset.max_traj_len, 1))
+        ret_action = torch.empty((self.batch_size, self.dataset.max_traj_len, self.action_dim))
+        for i in range(self.batch_size):
+            data = self.dataset[self.idx]
+            state, rtg, action = data['state'], data['rtg'], data['action']
+            ret_state[i,:,:] = state
+            ret_rtg[i,:,:] = rtg
+            ret_action[i,:,:] = action
+            self.idx = (self.idx + 1) % self.length if not self.shuffle else random.randint(0, self.length - 1)
+        batch = {
+            'state' : ret_state,
+            'rtg' : ret_rtg,
+            'action' : ret_action
+        }
+        yield batch
     
 
 """Helps to sample from the trajectory dataset multiple times"""
@@ -149,3 +180,30 @@ def cycle(iterable):
     while True:
         for x in iterable:
             yield x
+
+
+"""Testing script"""
+if __name__ == '__main__':
+    state_dim = 5
+    action_dim = 7
+    max_traj_len = 50
+    batch_size = 32
+
+    dataset = TrajectoryDataset(
+        action_dim, 
+        "behavioural_trajectory_data.pkl", 
+        max_traj_len=max_traj_len
+    )
+
+    dataloader = InfiniteSampler(state_dim, action_dim, dataset, batch_size=batch_size, shuffle=True)
+
+    iterator = iter(cycle(dataloader))
+
+    for i in range(100):
+        if i % 10 == 0:
+            print(i)
+            batch = next(iterator)
+            print(batch['state'][0, 0, :])
+            print(batch['rtg'][0, 0, :])
+            print(batch['action'][0, 0, :])
+            print("----")

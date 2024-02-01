@@ -6,7 +6,7 @@ from env.rmul_env import Env
 import os
 import cv2
 
-arena_file = "arena.json"
+arena_file = "./env/arena.json"
 total_robot_num = 1 # first try with only ego robot
 state_dim = total_robot_num * 3 + 2
 action_dim = 14
@@ -35,7 +35,7 @@ fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 x, y = env.arena.get_arena_image().shape[:2]
 video_writer = cv2.VideoWriter(video_path, fourcc, 30, (y, x))
 
-rtg = torch.Tensor(10000).to(device) # prompt: expectation of the reward-to-go
+rtg = torch.Tensor([10000,]).to(device) # prompt: expectation of the reward-to-go
 
 for i in range(1):
     state = env.reset()
@@ -44,8 +44,15 @@ for i in range(1):
     if i == 9:
         print("Recording video...")
     while not (done or truncated):
-        action, memory = agent.take_action(rtg, state, memory)
-        next_state, reward, done, truncated, frame = env.step(action)
+        state = torch.tensor(state).float().to(device)
+        action, memory = agent(rtg, state, memory)
+        print(action)
+        action_idx = torch.argmax(action, dim=-1).item()
+        cnt = 0
+        num_skipped_frame = 15
+        while cnt <= num_skipped_frame and not (done or truncated):
+            next_state, reward, done, _, frame = env.step(action_idx)
+            cnt += 1
         state = next_state
         rtg -= reward
 

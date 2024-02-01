@@ -26,7 +26,7 @@ else:
 print("{} trajectories already collected.".format(len(data)))
 input("Press Enter to start data collection of 10 trajectories.")
 
-max_traj_len = 100
+max_traj_len = 50
 
 for i in range(10):
     state = env.reset()
@@ -52,7 +52,14 @@ for i in range(10):
             action = 3
         elif keyboard.is_pressed('d') or keyboard.is_pressed('right'):
             action = 2
-        next_state, reward, done, _, _ = env.step(action)
+        this_time = time()
+        next_state = state
+        # frame skipping
+        cnt = 0
+        num_skipped_frame = 15
+        while cnt <= num_skipped_frame and not (done or truncated):
+            next_state, reward, done, _, _ = env.step(action)
+            cnt += 1
         trajectory['state'].append(state)
         rewards.append(reward)
         trajectory['action'].append(action)

@@ -122,7 +122,7 @@ class DecisionTransformer(torch.nn.Module):
         x = x[:, -self.max_traj_len * 2:, :] # only use the last max_traj_len elements of the memory
 
         output = self.transformer(x, pred_len = 1) 
-        action = self.act_predict(output) # predict the action, (batch_size, 1, action_dim)
+        action = F.softmax(self.act_predict(output), dim=-1) # predict the action, (batch_size, 1, action_dim)
         act_encoding = F.tanh(self.act_embed(action))
         new_memory = torch.cat((x, act_encoding), dim=-2) # append the action encoding to the memory, (batch_size, max_traj_len, feature_dim)
         new_memory = new_memory[:, -self.max_traj_len * 2:, :] # only use the last max_traj_len elements of the memory
