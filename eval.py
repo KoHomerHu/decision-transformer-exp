@@ -3,7 +3,7 @@ import random
 import numpy as np
 from decision_transformer import *
 from env.rmul_env import Env
-import os
+import torch.distributions as D
 import cv2
 
 arena_file = "./env/arena.json"
@@ -45,9 +45,10 @@ for i in range(1):
         print("Recording video...")
     while not (done or truncated):
         state = torch.tensor(state).float().to(device)
-        action, memory = agent(rtg, state, memory)
+        action, memory = agent.inference(rtg, state, memory)
         print(action)
-        action_idx = torch.argmax(action, dim=-1).item()
+        # action_idx = torch.argmax(action, dim=-1).item()
+        action_idx = D.Categorical(action).sample().item()
         cnt = 0
         num_skipped_frame = 15
         while cnt <= num_skipped_frame and not (done or truncated):

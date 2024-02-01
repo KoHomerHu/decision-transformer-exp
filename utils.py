@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import torch.distributions as D
 from torch.utils.data import Dataset, Sampler
 import copy
 import math
@@ -143,6 +144,20 @@ class TrajectoryDataset(Dataset):
             'rtg' : torch.tensor(rtg).unsqueeze(-1),
             'action' : F.one_hot(torch.tensor(action), self.action_dim)
         }
+    
+    def getitem(self, idx, traj_len):
+        trajectory = self.data[idx]
+        N = len(trajectory['state'])
+        start_idx = random.randint(0, N - traj_len)
+        end_idx = start_idx + traj_len
+        state = trajectory['state'][start_idx:end_idx]
+        rtg = trajectory['reward-to-go'][start_idx:end_idx]
+        action = trajectory['action'][start_idx:end_idx]
+        return {
+            'state' : torch.tensor(state),
+            'rtg' : torch.tensor(rtg).unsqueeze(-1),
+            'action' : F.one_hot(torch.tensor(action), self.action_dim)
+        }
 
 
 """More efficient trajectory sampler compared with the ordinary DataLoader"""
@@ -155,13 +170,17 @@ class InfiniteSampler(Sampler):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.idx = 0 if not self.shuffle else random.randint(0, self.length - 1)
+        probs = torch.arange(self.dataset.max_traj_len, dtype=torch.float32)
+        probs = probs / probs.sum()
+        self.length_dist = D.Categorical(probs=probs)
     
     def __iter__(self):
-        ret_state = torch.empty((self.batch_size, self.dataset.max_traj_len, self.state_dim))
-        ret_rtg = torch.empty((self.batch_size, self.dataset.max_traj_len, 1))
-        ret_action = torch.empty((self.batch_size, self.dataset.max_traj_len, self.action_dim))
+        traj_len = self.length_dist.sample().item() + 1
+        ret_state = torch.empty((self.batch_size, traj_len, self.state_dim))
+        ret_rtg = torch.empty((self.batch_size, traj_len, 1))
+        ret_action = torch.empty((self.batch_size, traj_len, self.action_dim))
         for i in range(self.batch_size):
-            data = self.dataset[self.idx]
+            data = self.dataset.getitem(self.idx, traj_len)
             state, rtg, action = data['state'], data['rtg'], data['action']
             ret_state[i,:,:] = state
             ret_rtg[i,:,:] = rtg
@@ -187,7 +206,7 @@ if __name__ == '__main__':
     state_dim = 5
     action_dim = 7
     max_traj_len = 50
-    batch_size = 32
+    batch_size = 1
 
     dataset = TrajectoryDataset(
         action_dim, 
@@ -207,3 +226,5 @@ if __name__ == '__main__':
             print(batch['rtg'][0, 0, :])
             print(batch['action'][0, 0, :])
             print("----")
+
+    print(next(iterator)['action'])

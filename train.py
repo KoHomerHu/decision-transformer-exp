@@ -33,38 +33,42 @@ if __name__ == '__main__':
 
     # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=8)
     dataloader = InfiniteSampler(state_dim, action_dim, dataset, batch_size=batch_size, shuffle=True)
-    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     criterion = torch.nn.CrossEntropyLoss(label_smoothing=0.05)
 
-    num_epochs = 100
+    num_iterations = 10000
     iterator = iter(cycle(dataloader))
 
-    with tqdm(total=num_epochs) as pbar:
+    with tqdm(total=num_iterations) as pbar:
         epoch = 0
-        while epoch < num_epochs:
+        while epoch < num_iterations:
 
             batch = next(iterator)
             rtg, obs, act = batch['rtg'].float().to(device), batch['state'].float().to(device), batch['action'].float().to(device)
+            traj_len = rtg.shape[1]
             if act.shape[0] != batch_size:
                 continue
 
-            pred_act = torch.zeros_like(act).to(device)
+            targ_act = act[:,-1,:].float().to(device)
             memory = None
 
-            for i in range(0, max_traj_len):
+            for i in range(traj_len):
                 pred_action, memory = model(rtg[:,i,:], obs[:,i,:], memory)
-                pred_act[:, i, :] += pred_action.squeeze(1)
+                act_encoding = F.tanh(model.act_embed(act[:,i,:])).unsqueeze(1)
+                memory = torch.cat((memory, act_encoding), dim=-2)
+                memory = memory[:, -max_traj_len * 2:, :]
+            pred_act = pred_action.squeeze(1).float().to(device)
 
-            loss = criterion(pred_act.reshape((max_traj_len * batch_size, action_dim)), 
-                             act.reshape((max_traj_len * batch_size, action_dim)))
+            # Only update the latter half of the predictions
 
+            loss = criterion(pred_act, targ_act)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             epoch += 1
             pbar.update(1)
-            pbar.set_description("Epoch {} Loss: {:.4f}".format(epoch, loss.item()))
+            pbar.set_description("Iteration {} Loss: {:.4f}".format(epoch, loss.item()))
 
     
     # Create models folder if not existing
