@@ -2,4 +2,6 @@ models/
 data/
 env/
 videos/
-./transformer_testing.py
+transformer_testing.py
+loss_curve.png
+__pycache__/
