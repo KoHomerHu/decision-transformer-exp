@@ -87,7 +87,7 @@ class Transformer(torch.nn.Module):
     
 
 class DecisionTransformer(torch.nn.Module):
-    def __init__(self, state_dim, action_dim, feature_dim=64, max_traj_len=500, num_decoder_layer=3, d_model=128, d_ff=128, num_heads=4, dropout=0.1):
+    def __init__(self, state_dim, action_dim, feature_dim=128, max_traj_len=500, num_decoder_layer=6, d_model=256, d_ff=512, num_heads=4, dropout=0.1):
         super(DecisionTransformer, self).__init__()
 
         self.state_dim = state_dim

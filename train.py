@@ -10,7 +10,7 @@ if __name__ == '__main__':
     state_dim = 5
     action_dim = 7
     max_traj_len = 50
-    batch_size = 64
+    batch_size = 128
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -22,22 +22,23 @@ if __name__ == '__main__':
 
     dataset = TrajectoryDataset(
         action_dim, 
-        "behavioural_trajectory_data.pkl", 
+        "behavioural_trajectory_data_test.pkl", 
         max_traj_len=max_traj_len
     )
 
-    # try:
-    #     model.load_state_dict(torch.load("./models/SentryGPT-beta.pt"))
-    # except:
-    #     pass
+    try:
+        model.load_state_dict(torch.load("./models/SentryGPT-beta.pt"))
+    except:
+        pass
 
     # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=8)
     dataloader = InfiniteSampler(state_dim, action_dim, dataset, batch_size=batch_size, shuffle=True)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.AdamW(model.parameters(), betas=(0.9, 0.95), lr=1e-4)
     criterion = torch.nn.CrossEntropyLoss(label_smoothing=0.05)
 
-    num_iterations = 10000
+    num_iterations = 1000
     iterator = iter(cycle(dataloader))
+    loss_lst = []
 
     with tqdm(total=num_iterations) as pbar:
         epoch = 0
@@ -70,10 +71,19 @@ if __name__ == '__main__':
             pbar.update(1)
             pbar.set_description("Iteration {} Loss: {:.4f}".format(epoch, loss.item()))
 
+            loss_lst.append(loss.item())
+
     
     # Create models folder if not existing
     if not os.path.exists("./models"):
         os.makedirs("./models")
 
-    torch.save(model.state_dict(), "./models/SentryGPT-beta.pt")
+    torch.save(model.state_dict(), "./models/SentryGPT-beta2.pt")
 
+    # use pyplot to plot the loss curve
+    import matplotlib.pyplot as plt
+    plt.plot(loss_lst)
+    plt.xlabel("Iteration")
+    plt.ylabel("Loss")
+    plt.title("Loss Curve")
+    plt.savefig("./loss_curve.png")

@@ -175,7 +175,8 @@ class InfiniteSampler(Sampler):
         self.length_dist = D.Categorical(probs=probs)
     
     def __iter__(self):
-        traj_len = self.length_dist.sample().item() + 1
+        # traj_len = self.length_dist.sample().item()
+        traj_len = self.dataset.max_traj_len
         ret_state = torch.empty((self.batch_size, traj_len, self.state_dim))
         ret_rtg = torch.empty((self.batch_size, traj_len, 1))
         ret_action = torch.empty((self.batch_size, traj_len, self.action_dim))

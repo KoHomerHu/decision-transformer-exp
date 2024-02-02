@@ -35,7 +35,7 @@ fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 x, y = env.arena.get_arena_image().shape[:2]
 video_writer = cv2.VideoWriter(video_path, fourcc, 30, (y, x))
 
-rtg = torch.Tensor([10000,]).to(device) # prompt: expectation of the reward-to-go
+rtg = torch.Tensor([50,]).to(device) # prompt: expectation of the reward-to-go
 
 for i in range(1):
     state = env.reset()
@@ -49,13 +49,15 @@ for i in range(1):
         print(action)
         # action_idx = torch.argmax(action, dim=-1).item()
         action_idx = D.Categorical(action).sample().item()
+        if random.random() < 0.05:
+            action_idx = random.randint(0, action_dim - 1)
         cnt = 0
         num_skipped_frame = 15
         while cnt <= num_skipped_frame and not (done or truncated):
             next_state, reward, done, _, frame = env.step(action_idx)
             cnt += 1
         state = next_state
-        rtg -= reward
+        # rtg -= reward
 
         # Write the frame to the video
         if i == 9:

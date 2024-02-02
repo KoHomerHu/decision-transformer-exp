@@ -16,7 +16,7 @@ robot_configuration = {
 
 env = Env(arena_file, total_robot_num, robot_configuration, 1.0, rendering=True, truncate_size=1000, real_show = False)
 
-filename = "./data/behavioural_trajectory_data.pkl"
+filename = "./data/behavioural_trajectory_data_test.pkl"
 data = []
 if os.path.exists(filename):
     data = pickle.load(open(filename, 'rb')) # multiple runs of this script will append to the same file
@@ -24,11 +24,11 @@ else:
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
 print("{} trajectories already collected.".format(len(data)))
-input("Press Enter to start data collection of 10 trajectories.")
+input("Press Enter to start data collection of trajectories.")
 
 max_traj_len = 50
 
-for i in range(10):
+for i in range(1):
     state = env.reset()
     done = truncated = False
     trajectory = {
