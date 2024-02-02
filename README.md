@@ -24,3 +24,7 @@ The decision transformer is implemented for discrete actions and without conside
 The input is the latest state, reward-to-go, and memory; and outputs the predicted action and a new memory which concatenates the action.
 
 The initial reward-to-go needs to be manually setup, but for path planning, maybe a distribution of the reward-to-go conditioned on the intial state may be learned, as suggest in Appendix A.3 in the paper of decision transformer.
+
+### First 5000 iterations training with fixed input length
+
+![Alt text](./loss_curve1.png "a title")
