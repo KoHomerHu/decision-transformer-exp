@@ -5,7 +5,7 @@ from utils import *
 from tqdm import tqdm
 import os
 
-warmup_steps = 200
+warmup_steps = 2000
 def warmup(step_num):
     step_num += 1
     return min(step_num ** -0.5, step_num * warmup_steps ** -1.5)
@@ -16,9 +16,9 @@ if __name__ == '__main__':
     action_dim = 7
     max_traj_len = 50
     batch_size = 256
-    num_iterations = 5000
+    num_iterations = 40000
     label_smoothing = 0.1
-    gamma = 0.0
+    gamma = 1.0
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
