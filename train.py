@@ -1,8 +1,14 @@
 import torch
+import torch.nn.functional as F
 from decision_transformer import *
 from utils import *
 from tqdm import tqdm
 import os
+
+warmup_steps = 200
+def warmup(step_num):
+    step_num += 1
+    return min(step_num ** -0.5, step_num * warmup_steps ** -1.5)
 
 
 if __name__ == '__main__':
@@ -11,17 +17,13 @@ if __name__ == '__main__':
     max_traj_len = 50
     batch_size = 256
     num_iterations = 5000
-    warmup_steps = 200
     label_smoothing = 0.1
     gamma = 0.0
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = DecisionTransformer(
-        state_dim, 
-        action_dim, 
-        max_traj_len=max_traj_len, 
-        warmup_steps= warmup_steps
+    model = Transformer(
+        1 + state_dim + action_dim
     ).to(device)
 
     dataset = TrajectoryDataset(
@@ -38,7 +40,7 @@ if __name__ == '__main__':
     # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=8)
     dataloader = InfiniteSampler(state_dim, action_dim, dataset, batch_size=batch_size, shuffle=True)
     optimizer = torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-9, lr=1e-1 * model.d_model ** -0.5)
-    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=model.warmup)
+    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=warmup)
 
     iterator = iter(cycle(dataloader))
     loss_lst = []
@@ -46,18 +48,15 @@ if __name__ == '__main__':
     with tqdm(total=num_iterations) as pbar:
         epoch = 0
         while epoch < num_iterations:
-
-            batch = next(iterator)
-            rtg, obs, act = batch['rtg'].float().to(device), batch['state'].float().to(device), batch['action'].float().to(device)
-            traj_len = rtg.shape[1]
-            if act.shape[0] != batch_size:
-                continue
-
-            targ_act = act[:,-1,:]
-            pred_act = model(rtg, obs, act[:,:-1,:])
-            # print("\n", pred_act[-1])
-            log_probs = torch.log(pred_act + 1e-9)
-            loss = -torch.sum(targ_act * torch.pow((1 - pred_act), gamma) * log_probs, dim=-1).mean()
+            X, y = next(iterator)
+            X = X.to(device)
+            y = y.to(device)
+            prediction = model(X, padding = False).squeeze(1)
+            action_prob = F.softmax(prediction[:,-action_dim:], dim=-1)
+            # print(action_prob)
+            # print(y)
+            log_probs = torch.log(action_prob + 1e-9)
+            loss = -torch.sum(y * torch.pow((1 - action_prob), gamma) * log_probs, dim=-1).mean()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

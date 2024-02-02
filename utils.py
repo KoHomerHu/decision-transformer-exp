@@ -183,12 +183,11 @@ class InfiniteSampler(Sampler):
             ret_rtg[i,:,:] = rtg
             ret_action[i,:,:] = action
             self.idx = (self.idx + 1) % self.length if not self.shuffle else random.randint(0, self.length - 1)
-        batch = {
-            'state' : ret_state,
-            'rtg' : ret_rtg,
-            'action' : ret_action
-        }
-        yield batch
+        blank = -2 * torch.ones((self.batch_size, 1, self.action_dim))
+        ret_action = torch.concat((ret_action[:,:-1,:], blank), dim=1)
+        X = torch.cat((ret_rtg, ret_state, ret_action), dim=-1)
+        y = ret_action[:,-2,:]
+        yield X, y
     
 
 """Helps to sample from the trajectory dataset multiple times"""

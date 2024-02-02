@@ -41,7 +41,7 @@ sequences of 1D tensors (i.e. (batch_size, seq_len, state_dim) or (seq_len, stat
 the prediction of the next state only. Assume that the input is not all negative.
 """
 class Transformer(torch.nn.Module):
-    def __init__(self, feature_dim, num_decoder_layer=4, d_model=256, d_ff=512, num_heads=8, dropout=0.1):
+    def __init__(self, feature_dim, num_decoder_layer=6, d_model=256, d_ff=512, num_heads=8, dropout=0.1):
         super(Transformer, self).__init__()
 
         self.decoder=  Decoder(
@@ -60,6 +60,8 @@ class Transformer(torch.nn.Module):
         )
 
         self.predictor = ANN(d_model, [d_model * 2, d_model * 2], feature_dim)
+
+        self.d_model = d_model
 
         for p in self.parameters():
             if p.dim() > 1:
