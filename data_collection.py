@@ -28,7 +28,7 @@ input("Press Enter to start data collection of trajectories.")
 
 max_traj_len = 50
 
-for i in range(1):
+for i in range(10):
     state = env.reset()
     done = truncated = False
     trajectory = {
@@ -67,6 +67,9 @@ for i in range(1):
     if len(trajectory['state']) < max_traj_len:
         continue
     trajectory['reward-to-go'] = reward_to_go(rewards)
+    trajectory['action'] = trajectory['action'][-max_traj_len:]
+    trajectory['state'] = trajectory['state'][-max_traj_len:]
+    trajectory['reward-to-go'] = trajectory['reward-to-go'][-max_traj_len:]
     data.append(trajectory)
     end_time = time()
     print("FPS = ", len(trajectory['state']) / (end_time - start_time))

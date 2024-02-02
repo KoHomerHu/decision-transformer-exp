@@ -2,7 +2,6 @@ import torch
 from decision_transformer import *
 from utils import *
 from tqdm import tqdm
-from torch.utils.data import DataLoader
 import os
 
 
@@ -10,19 +9,24 @@ if __name__ == '__main__':
     state_dim = 5
     action_dim = 7
     max_traj_len = 50
-    batch_size = 128
+    batch_size = 256
+    num_iterations = 5000
+    warmup_steps = 200
+    label_smoothing = 0.1
+    gamma = 0.0
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = DecisionTransformer(
         state_dim, 
         action_dim, 
-        max_traj_len=max_traj_len
+        max_traj_len=max_traj_len, 
+        warmup_steps= warmup_steps
     ).to(device)
 
     dataset = TrajectoryDataset(
         action_dim, 
-        "behavioural_trajectory_data_test.pkl", 
+        "behavioural_trajectory_data.pkl", 
         max_traj_len=max_traj_len
     )
 
@@ -33,10 +37,9 @@ if __name__ == '__main__':
 
     # dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=8)
     dataloader = InfiniteSampler(state_dim, action_dim, dataset, batch_size=batch_size, shuffle=True)
-    optimizer = torch.optim.AdamW(model.parameters(), betas=(0.9, 0.95), lr=1e-4)
-    criterion = torch.nn.CrossEntropyLoss(label_smoothing=0.05)
+    optimizer = torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-9, lr=1e-1 * model.d_model ** -0.5)
+    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=model.warmup)
 
-    num_iterations = 1000
     iterator = iter(cycle(dataloader))
     loss_lst = []
 
@@ -50,22 +53,15 @@ if __name__ == '__main__':
             if act.shape[0] != batch_size:
                 continue
 
-            targ_act = act[:,-1,:].float().to(device)
-            memory = None
-
-            for i in range(traj_len):
-                pred_action, memory = model(rtg[:,i,:], obs[:,i,:], memory)
-                act_encoding = F.tanh(model.act_embed(act[:,i,:])).unsqueeze(1)
-                memory = torch.cat((memory, act_encoding), dim=-2)
-                memory = memory[:, -max_traj_len * 2:, :]
-            pred_act = pred_action.squeeze(1).float().to(device)
-
-            # Only update the latter half of the predictions
-
-            loss = criterion(pred_act, targ_act)
+            targ_act = act[:,-1,:]
+            pred_act = model(rtg, obs, act[:,:-1,:])
+            # print("\n", pred_act[-1])
+            log_probs = torch.log(pred_act + 1e-9)
+            loss = -torch.sum(targ_act * torch.pow((1 - pred_act), gamma) * log_probs, dim=-1).mean()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            lr_scheduler.step()
 
             epoch += 1
             pbar.update(1)
@@ -78,7 +74,7 @@ if __name__ == '__main__':
     if not os.path.exists("./models"):
         os.makedirs("./models")
 
-    torch.save(model.state_dict(), "./models/SentryGPT-beta2.pt")
+    torch.save(model.state_dict(), "./models/SentryGPT-beta.pt")
 
     # use pyplot to plot the loss curve
     import matplotlib.pyplot as plt

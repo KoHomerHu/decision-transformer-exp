@@ -170,12 +170,8 @@ class InfiniteSampler(Sampler):
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.idx = 0 if not self.shuffle else random.randint(0, self.length - 1)
-        probs = torch.arange(self.dataset.max_traj_len, dtype=torch.float32)
-        probs = probs / probs.sum()
-        self.length_dist = D.Categorical(probs=probs)
     
     def __iter__(self):
-        # traj_len = self.length_dist.sample().item()
         traj_len = self.dataset.max_traj_len
         ret_state = torch.empty((self.batch_size, traj_len, self.state_dim))
         ret_rtg = torch.empty((self.batch_size, traj_len, 1))
