@@ -5,7 +5,7 @@ from utils import *
 from tqdm import tqdm
 import os
 
-warmup_steps = 2000
+warmup_steps = 3000
 def warmup(step_num):
     step_num += 1
     return min(step_num ** -0.5, step_num * warmup_steps ** -1.5)
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     action_dim = 7
     max_traj_len = 50
     batch_size = 256
-    num_iterations = 40000
+    num_iterations = 50000
     label_smoothing = 0.1
     gamma = 1.0
 
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     if not os.path.exists("./models"):
         os.makedirs("./models")
 
-    torch.save(model.state_dict(), "./models/SentryGPT-beta.pt")
+    torch.save(model.state_dict(), "./models/SentryGPT-beta2.pt")
 
     # use pyplot to plot the loss curve
     import matplotlib.pyplot as plt
@@ -81,4 +81,4 @@ if __name__ == '__main__':
     plt.xlabel("Iteration")
     plt.ylabel("Loss")
     plt.title("Loss Curve")
-    plt.savefig("./loss_curve.png")
+    plt.savefig("./loss_curve3.png")

@@ -174,6 +174,7 @@ class InfiniteSampler(Sampler):
     def __iter__(self):
         len_probs = torch.arange(self.dataset.max_traj_len).float()
         len_probs[1] = 0.0
+        len_probs = len_probs ** 2
         len_probs = len_probs / len_probs.sum()
         traj_len = torch.distributions.Categorical(len_probs).sample().item()
         ret_state = torch.empty((self.batch_size, traj_len, self.state_dim))
