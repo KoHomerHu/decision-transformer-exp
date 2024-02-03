@@ -20,4 +20,6 @@ class PNN(torch.nn.Module):
     
     """NLL loss function for the PNN."""
     def loss(self, mu, std, y):
-        return (mu - y).dot(mu - y) / (std ** 2) + 2 * torch.log(std).sum()
+        return 0.5 * (mu - y).dot(mu - y) / (std ** 2) + torch.log(std).sum()
+    
+
