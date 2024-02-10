@@ -95,32 +95,36 @@ class Transformer(torch.nn.Module):
 
 class DecisionTransformer(torch.nn.Module):
     def __init__(self, state_dim, action_dim, feature_dim=64, num_decoder_layer=8, 
-                 d_model=128, d_ff=512, num_heads=8, dropout=0.1):
+                 d_model=128, d_ff=512, num_heads=8, dropout=0.1, custom_positional_encoding = True):
         super(DecisionTransformer, self).__init__()
 
         self.d_model = d_model
 
         self.transformer = Transformer(
-            feature_dim, num_decoder_layer, d_model, d_ff, num_heads, dropout, positional_encoding = False
+            feature_dim, num_decoder_layer, d_model, d_ff, num_heads, 
+            dropout, positional_encoding = not custom_positional_encoding
         )
 
         self.rtg_embed = torch.nn.Linear(1, feature_dim)
         self.state_embed = torch.nn.Linear(state_dim, feature_dim)
         self.act_embed = torch.nn.Linear(action_dim, feature_dim)
-        self.positional_encoding = PositionalEncoding(feature_dim, dropout)
+        self.custom_positional_encoding = custom_positional_encoding
+        if custom_positional_encoding:
+            self.positional_encoding = PositionalEncoding(feature_dim, dropout)
 
         self.act_predict = torch.nn.Linear(feature_dim, action_dim)
 
     def forward(self, rtg, obs, act):
         rtg = F.tanh(self.rtg_embed(rtg))
-        rtg = self.positional_encoding(rtg)
         batch_size, seq_len, feature_dim = rtg.shape
         obs = F.tanh(self.state_embed(obs))
-        obs = self.positional_encoding(obs)
         act = F.tanh(self.act_embed(act))
         blank = -2 * torch.ones(act.shape[0], 1, act.shape[-1]).to(act.device)
         act = torch.cat((act, blank), dim=1)
-        act = self.positional_encoding(act)
+        if self.custom_positional_encoding:
+            rtg = self.positional_encoding(rtg)
+            obs = self.positional_encoding(obs)
+            act = self.positional_encoding(act)
         input = torch.cat((rtg, obs, act), dim=-1)
         input = input.reshape(batch_size, seq_len * 3, feature_dim)
         output = self.transformer(input, pred_len = 1, padding = False)
