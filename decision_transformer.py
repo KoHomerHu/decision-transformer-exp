@@ -94,7 +94,7 @@ class Transformer(torch.nn.Module):
     
 
 class DecisionTransformer(torch.nn.Module):
-    def __init__(self, state_dim, action_dim, feature_dim=64, num_decoder_layer=6, 
+    def __init__(self, state_dim, action_dim, feature_dim=64, num_decoder_layer=8, 
                  d_model=128, d_ff=512, num_heads=8, dropout=0.1):
         super(DecisionTransformer, self).__init__()
 
@@ -124,5 +124,31 @@ class DecisionTransformer(torch.nn.Module):
         input = torch.cat((rtg, obs, act), dim=-1)
         input = input.reshape(batch_size, seq_len * 3, feature_dim)
         output = self.transformer(input, pred_len = 1, padding = False)
-        prob = F.softmax(self.act_predict(output), dim=-1)
+        prob = F.softmax(self.act_predict(output), dim=-1).squeeze(1)
+        return prob
+
+
+"""
+Alternative implementation of the decision transformer that does not embed the rtgs, obs and act into 
+the same feature space before feeding them into the transformer. 
+"""
+class DecisionTransformer2(torch.nn.Module):
+    def __init__(self, state_dim, action_dim, num_decoder_layer=12, 
+                 d_model=256, d_ff=512, num_heads=8, dropout=0.1):
+        super(DecisionTransformer2, self).__init__()
+
+        self.action_dim = action_dim
+        self.d_model = d_model
+
+        self.transformer = Transformer(
+            1 + state_dim + action_dim, num_decoder_layer, d_model, d_ff, num_heads, dropout
+        )
+
+    def forward(self, rtg, obs, act):
+        blank = -2 * torch.ones(act.shape[0], 1, act.shape[-1]).to(act.device)
+        act = torch.cat((act, blank), dim=1)
+        input = torch.cat((rtg, obs, act), dim=-1)
+        output = self.transformer(input, pred_len = 1, padding = False)
+        output = output.squeeze(1)
+        prob = F.softmax(output[:,-self.action_dim:], dim=-1)
         return prob
