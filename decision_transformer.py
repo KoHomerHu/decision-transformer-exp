@@ -41,7 +41,8 @@ sequences of 1D tensors (i.e. (batch_size, seq_len, state_dim) or (seq_len, stat
 the prediction of the next state only. Assume that the input is not all negative.
 """
 class Transformer(torch.nn.Module):
-    def __init__(self, feature_dim, num_decoder_layer=6, d_model=256, d_ff=512, num_heads=8, dropout=0.1):
+    def __init__(self, feature_dim, num_decoder_layer=6, d_model=256, d_ff=512, 
+                 num_heads=8, dropout=0.1, positional_encoding = True):
         super(Transformer, self).__init__()
 
         self.decoder=  Decoder(
@@ -54,10 +55,13 @@ class Transformer(torch.nn.Module):
             num_decoder_layer
         )
 
-        self.embed = torch.nn.Sequential(
-            ANN(feature_dim, [d_model * 2, d_model * 2], d_model), 
-            PositionalEncoding(d_model, dropout)
-        )
+        if positional_encoding:
+            self.embed = torch.nn.Sequential(
+                ANN(feature_dim, [d_model * 2, d_model * 2], d_model), 
+                PositionalEncoding(d_model, dropout)
+            )
+        else:
+            self.embed = ANN(feature_dim, [d_model * 2, d_model * 2], d_model)
 
         self.predictor = ANN(d_model, [d_model * 2, d_model * 2], feature_dim)
 
@@ -91,29 +95,34 @@ class Transformer(torch.nn.Module):
 
 class DecisionTransformer(torch.nn.Module):
     def __init__(self, state_dim, action_dim, feature_dim=64, num_decoder_layer=6, 
-                 d_model=256, d_ff=512, num_heads=4, dropout=0.1):
+                 d_model=128, d_ff=512, num_heads=8, dropout=0.1):
         super(DecisionTransformer, self).__init__()
 
         self.d_model = d_model
 
         self.transformer = Transformer(
-            feature_dim, num_decoder_layer, d_model, d_ff, num_heads, dropout
+            feature_dim, num_decoder_layer, d_model, d_ff, num_heads, dropout, positional_encoding = False
         )
 
         self.rtg_embed = torch.nn.Linear(1, feature_dim)
         self.state_embed = torch.nn.Linear(state_dim, feature_dim)
         self.act_embed = torch.nn.Linear(action_dim, feature_dim)
+        self.positional_encoding = PositionalEncoding(feature_dim, dropout)
 
         self.act_predict = torch.nn.Linear(feature_dim, action_dim)
 
     def forward(self, rtg, obs, act):
         rtg = F.tanh(self.rtg_embed(rtg))
+        rtg = self.positional_encoding(rtg)
         batch_size, seq_len, feature_dim = rtg.shape
         obs = F.tanh(self.state_embed(obs))
+        obs = self.positional_encoding(obs)
         act = F.tanh(self.act_embed(act))
         blank = -2 * torch.ones(act.shape[0], 1, act.shape[-1]).to(act.device)
         act = torch.cat((act, blank), dim=1)
-        input = torch.cat((rtg, obs, act), dim=-1).reshape(batch_size, seq_len * 3, feature_dim)
+        act = self.positional_encoding(act)
+        input = torch.cat((rtg, obs, act), dim=-1)
+        input = input.reshape(batch_size, seq_len * 3, feature_dim)
         output = self.transformer(input, pred_len = 1, padding = False)
         prob = F.softmax(self.act_predict(output), dim=-1)
         return prob

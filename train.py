@@ -16,7 +16,7 @@ if __name__ == '__main__':
     action_dim = 7
     max_traj_len = 50
     batch_size = 128
-    num_iterations = 10000
+    num_iterations = 5000
     label_smoothing = 0.1
     gamma = 1.0
 

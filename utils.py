@@ -93,7 +93,7 @@ class ANN(torch.nn.Module):
     
 
 class PositionalEncoding(torch.nn.Module):
-    def __init__(self, d_model, dropout, max_len=1500):
+    def __init__(self, d_model, dropout, max_len=1000):
         super(PositionalEncoding, self).__init__()
         self.dropout = torch.nn.Dropout(p=dropout)
 
