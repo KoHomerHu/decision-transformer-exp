@@ -25,8 +25,6 @@ The input is the latest state, reward-to-go, and memory; and outputs the predict
 
 The initial reward-to-go needs to be manually setup, but for path planning, maybe a distribution of the reward-to-go conditioned on the intial state may be learned, as suggest in Appendix A.3 in the paper of decision transformer.
 
-**Remark.** The original DecisionTransformer class implemented is not used because for some reason the model never converges (probably due to wrongly copying tensors during training time). 
-
 ## To-do List
 
 - [ ] Modify state representation and collect more data

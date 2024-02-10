@@ -93,7 +93,7 @@ class ANN(torch.nn.Module):
     
 
 class PositionalEncoding(torch.nn.Module):
-    def __init__(self, d_model, dropout, max_len=1000):
+    def __init__(self, d_model, dropout, max_len=1500):
         super(PositionalEncoding, self).__init__()
         self.dropout = torch.nn.Dropout(p=dropout)
 
@@ -187,11 +187,12 @@ class InfiniteSampler(Sampler):
             ret_rtg[i,:,:] = rtg
             ret_action[i,:,:] = action
             self.idx = (self.idx + 1) % self.length if not self.shuffle else random.randint(0, self.length - 1)
-        blank = -2 * torch.ones((self.batch_size, 1, self.action_dim))
-        ret_action = torch.concat((ret_action[:,:-1,:], blank), dim=1)
-        X = torch.cat((ret_rtg, ret_state, ret_action), dim=-1)
-        y = ret_action[:,-2,:]
-        yield X, y
+        # blank = -2 * torch.ones((self.batch_size, 1, self.action_dim))
+        # ret_action = torch.concat((ret_action[:,:-1,:], blank), dim=1)
+        # X = torch.cat((ret_rtg, ret_state, ret_action), dim=-1)
+        # y = ret_action[:,-2,:]
+        # yield X, y
+        yield ret_rtg, ret_state, ret_action[:,:-1,:], ret_action[:,-1,:]
     
 
 """Helps to sample from the trajectory dataset multiple times"""

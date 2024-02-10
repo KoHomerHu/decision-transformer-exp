@@ -5,7 +5,7 @@ from utils import *
 from tqdm import tqdm
 import os
 
-warmup_steps = 3000
+warmup_steps = 500
 def warmup(step_num):
     step_num += 1
     return min(step_num ** -0.5, step_num * warmup_steps ** -1.5)
@@ -15,15 +15,15 @@ if __name__ == '__main__':
     state_dim = 5
     action_dim = 7
     max_traj_len = 50
-    batch_size = 256
-    num_iterations = 50000
+    batch_size = 128
+    num_iterations = 10000
     label_smoothing = 0.1
     gamma = 1.0
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = Transformer(
-        1 + state_dim + action_dim
+    model = DecisionTransformer(
+        state_dim, action_dim
     ).to(device)
 
     dataset = TrajectoryDataset(
@@ -48,15 +48,17 @@ if __name__ == '__main__':
     with tqdm(total=num_iterations) as pbar:
         epoch = 0
         while epoch < num_iterations:
-            X, y = next(iterator)
-            X = X.to(device)
-            y = y.to(device)
-            prediction = model(X, padding = False).squeeze(1)
+            rtg, state, action, target_action = next(iterator)
+            # print(rtg.shape, state.shape, action.shape, target_action.shape)
+            rtg = rtg.to(device)
+            state = state.to(device)
+            action = action.to(device)
+            target_action = target_action.to(device)
+            prediction = model(rtg, state, action).squeeze(1)
             action_prob = F.softmax(prediction[:,-action_dim:], dim=-1)
-            # print(action_prob)
-            # print(y)
             log_probs = torch.log(action_prob + 1e-9)
-            loss = -torch.sum(y * torch.pow((1 - action_prob), gamma) * log_probs, dim=-1).mean()
+            loss = -torch.sum(target_action * torch.pow((1 - action_prob), gamma) * log_probs, dim=-1).mean()
+            # loss = torch.tensor(0.0, requires_grad=True)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
